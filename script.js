@@ -1,5 +1,5 @@
 // Valentine Proposal (Saiful -> Anika)
-// Keep index.html/style.css unchanged. This script uses canvas id="c".
+// Uses canvas id="c". Keep index.html/style.css unchanged.
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 
@@ -14,7 +14,7 @@ function resize() {
 addEventListener("resize", resize);
 resize();
 
-// Names updated
+// Names
 const FROM = "Saiful";
 const TO = "Anika";
 
@@ -49,7 +49,7 @@ let heartPulse = 1.0;
 // UI button hitbox (canvas button)
 let yesBtn = { x: 0, y: 0, w: 0, h: 0, visible: false };
 
-// Camera shake for celebration
+// Camera shake
 let shake = 0;
 
 // Particles
@@ -72,10 +72,69 @@ const fireflies = Array.from({ length: 28 }, () => ({
   sp: 0.007 + Math.random() * 0.012,
 }));
 
-// Click/tap hearts + YES button click
+/* ---------------------------------
+   Local photo upload (PC photo)
+---------------------------------- */
+// We show the photo at the last scene.
+// You can load by either:
+// 1) putting file in project folder and setting coupleImg.src = "couple.jpg"
+// 2) using file picker / drag-drop in browser
+
+const coupleImg = new Image();
+let coupleReady = false;
+let coupleSourceLabel = "";
+
+// Optional: if you place an image in the folder, uncomment this:
+// coupleImg.src = "couple.jpg";
+// coupleImg.onload = () => { coupleReady = true; coupleSourceLabel = "Photo added"; };
+
+function loadImageFromFile(file) {
+  if (!file) return;
+  if (!file.type || !file.type.startsWith("image/")) return;
+
+  const url = URL.createObjectURL(file);
+  coupleImg.onload = () => {
+    coupleReady = true;
+    coupleSourceLabel = `Photo loaded: ${file.name}`;
+    URL.revokeObjectURL(url);
+  };
+  coupleImg.src = url;
+}
+
+// Create a hidden file input, so user can pick a photo from PC
+const photoInput = document.createElement("input");
+photoInput.type = "file";
+photoInput.accept = "image/*";
+photoInput.style.position = "fixed";
+photoInput.style.left = "-9999px";
+photoInput.style.top = "-9999px";
+document.body.appendChild(photoInput);
+
+photoInput.addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  loadImageFromFile(file);
+  photoInput.value = "";
+});
+
+// Drag & drop support
+addEventListener("dragover", (e) => {
+  e.preventDefault();
+});
+
+addEventListener("drop", (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  // Only allow photo drop when in last scene, so it feels intentional
+  if (scene === Scene.DANCE) loadImageFromFile(file);
+});
+
+// Click/tap hearts + YES button click + Photo button click
+let photoBtn = { x: 0, y: 0, w: 0, h: 0, visible: false };
+
 addEventListener("pointerdown", (e) => {
   const mx = e.clientX, my = e.clientY;
 
+  // YES button click
   if (yesBtn.visible) {
     if (mx >= yesBtn.x && mx <= yesBtn.x + yesBtn.w && my >= yesBtn.y && my <= yesBtn.y + yesBtn.h) {
       scene = Scene.YES;
@@ -86,6 +145,15 @@ addEventListener("pointerdown", (e) => {
     }
   }
 
+  // Photo button click (only in DANCE)
+  if (photoBtn.visible) {
+    if (mx >= photoBtn.x && mx <= photoBtn.x + photoBtn.w && my >= photoBtn.y && my <= photoBtn.y + photoBtn.h) {
+      photoInput.click();
+      return;
+    }
+  }
+
+  // Bonus hearts anywhere
   spawnClickHearts(mx, my);
 });
 
@@ -116,7 +184,6 @@ function roundRect(x, y, w, h, r) {
 function wrapText(text, x, y, maxWidth, lineHeight) {
   const words = text.split(" ");
   let line = "";
-
   for (let i = 0; i < words.length; i++) {
     const testLine = line + words[i] + " ";
     if (ctx.measureText(testLine).width > maxWidth && i > 0) {
@@ -274,7 +341,9 @@ function bouquet(x, y, scale = 1) {
   ctx.restore();
 }
 
-// Simple walk-time girl (keep original)
+/* ---------------------------------
+   Walk scene characters (kept)
+---------------------------------- */
 function drawGirl(x, y) {
   const breathing = Math.sin(performance.now() / 450) * 1.5;
   const cy = y + breathing;
@@ -340,7 +409,6 @@ function drawGirl(x, y) {
   ctx.fillText(TO, x + 24, cy + 30);
 }
 
-// Boy with suit (already upgraded)
 function drawBoy(x, y, opts = {}) {
   const isWalk = opts.isWalk ?? (scene === Scene.WALK);
   const bob = isWalk ? Math.abs(Math.sin(walkPhase) * 8) : Math.sin(performance.now() / 450) * 1.5;
@@ -526,9 +594,9 @@ function drawBackground() {
   ctx.fill();
 }
 
-/* ------------------------------
-   Ballroom upgrade helpers
---------------------------------*/
+/* ---------------------------------
+   Better ballroom dance drawing
+---------------------------------- */
 function softShadow(x, y, rx, ry, a = 0.25) {
   ctx.save();
   ctx.fillStyle = `rgba(0,0,0,${a})`;
@@ -538,18 +606,8 @@ function softShadow(x, y, rx, ry, a = 0.25) {
   ctx.restore();
 }
 
-function gradientFillCircle(x, y, r, c1, c2) {
-  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.2, x, y, r);
-  g.addColorStop(0, c1);
-  g.addColorStop(1, c2);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-}
-
 function drawSuitTorso(x, y, w, h) {
-  ctx.fillStyle = "rgb(24,24,34)";
+  ctx.fillStyle = "rgb(22,22,32)";
   roundRect(x - w / 2, y - h / 2, w, h, 18);
   ctx.fill();
 
@@ -557,18 +615,18 @@ function drawSuitTorso(x, y, w, h) {
   roundRect(x - w * 0.12, y - h * 0.42, w * 0.24, h * 0.84, 10);
   ctx.fill();
 
-  ctx.fillStyle = "rgb(18,18,26)";
+  ctx.fillStyle = "rgb(16,16,22)";
   ctx.beginPath();
   ctx.moveTo(x - w * 0.18, y - h * 0.42);
   ctx.lineTo(x - w * 0.02, y - h * 0.06);
-  ctx.lineTo(x - w * 0.20, y - h * 0.02);
+  ctx.lineTo(x - w * 0.22, y - h * 0.02);
   ctx.closePath();
   ctx.fill();
 
   ctx.beginPath();
   ctx.moveTo(x + w * 0.18, y - h * 0.42);
   ctx.lineTo(x + w * 0.02, y - h * 0.06);
-  ctx.lineTo(x + w * 0.20, y - h * 0.02);
+  ctx.lineTo(x + w * 0.22, y - h * 0.02);
   ctx.closePath();
   ctx.fill();
 
@@ -582,173 +640,182 @@ function drawSuitTorso(x, y, w, h) {
   ctx.fill();
 }
 
-function drawDress(x, y, w, h) {
-  ctx.fillStyle = "rgb(255,115,175)";
+function drawDress(x, y, w, h, swing = 0) {
+  // bodice
+  ctx.fillStyle = "rgb(255,110,170)";
   roundRect(x - w * 0.22, y - h * 0.44, w * 0.44, h * 0.44, 14);
   ctx.fill();
 
-  const g = ctx.createLinearGradient(0, y - h * 0.05, 0, y + h * 0.62);
-  g.addColorStop(0, "rgba(255,115,175,0.95)");
-  g.addColorStop(1, "rgba(255,75,145,0.98)");
+  // skirt gradient
+  const g = ctx.createLinearGradient(0, y - h * 0.08, 0, y + h * 0.70);
+  g.addColorStop(0, "rgba(255,110,170,0.95)");
+  g.addColorStop(1, "rgba(255,60,135,0.98)");
   ctx.fillStyle = g;
 
+  // skirt shape with swing
   ctx.beginPath();
   ctx.moveTo(x - w * 0.30, y - h * 0.05);
-  ctx.quadraticCurveTo(x - w * 0.72, y + h * 0.42, x - w * 0.20, y + h * 0.62);
-  ctx.quadraticCurveTo(x, y + h * 0.70, x + w * 0.20, y + h * 0.62);
-  ctx.quadraticCurveTo(x + w * 0.72, y + h * 0.42, x + w * 0.30, y - h * 0.05);
+  ctx.quadraticCurveTo(x - w * (0.78 + swing), y + h * 0.42, x - w * 0.18, y + h * 0.66);
+  ctx.quadraticCurveTo(x, y + h * 0.75, x + w * 0.18, y + h * 0.66);
+  ctx.quadraticCurveTo(x + w * (0.78 - swing), y + h * 0.42, x + w * 0.30, y - h * 0.05);
   ctx.closePath();
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  // pleats
+  ctx.strokeStyle = "rgba(255,255,255,0.14)";
   ctx.lineWidth = 1;
   for (let i = -3; i <= 3; i++) {
     ctx.beginPath();
     ctx.moveTo(x + i * w * 0.06, y - h * 0.02);
-    ctx.quadraticCurveTo(x + i * w * 0.12, y + h * 0.28, x + i * w * 0.02, y + h * 0.60);
+    ctx.quadraticCurveTo(x + i * w * 0.14, y + h * 0.30, x + i * w * 0.02, y + h * 0.64);
     ctx.stroke();
   }
 }
 
-function drawFaceProfile(x, y, r, skin1 = "rgb(255,235,215)", skin2 = "rgb(245,210,190)") {
-  gradientFillCircle(x, y, r, skin1, skin2);
-
-  ctx.fillStyle = "rgba(0,0,0,0.07)";
+function drawFace(x, y, r, hair = "rgb(30,30,30)") {
+  // simple shaded face
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.2, x, y, r);
+  g.addColorStop(0, "rgb(255,235,215)");
+  g.addColorStop(1, "rgb(245,210,190)");
+  ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.ellipse(x + r * 0.55, y + r * 0.15, r * 0.22, r * 0.16, 0, 0, Math.PI * 2);
+  ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
 
+  // hair
+  ctx.fillStyle = hair;
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 6, r * 1.05, Math.PI, 0);
+  ctx.fill();
+
+  // eye
   ctx.fillStyle = "rgba(0,0,0,0.75)";
   ctx.beginPath();
-  ctx.ellipse(x + r * 0.05, y - r * 0.10, r * 0.10, r * 0.14, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + r * 0.10, y - r * 0.10, r * 0.10, r * 0.14, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "rgba(255,255,255,0.65)";
   ctx.beginPath();
-  ctx.ellipse(x + r * 0.08, y - r * 0.14, r * 0.05, r * 0.08, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + r * 0.14, y - r * 0.14, r * 0.05, r * 0.08, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
-// Ballroom couple dance (REPLACES old dance)
 function drawCoupleDance() {
   const W = innerWidth;
-  const gy = groundY();
-
-  const cx = W * 0.52;
-  const baseY = gy;
+  const baseY = groundY();
 
   const tt = performance.now() * 0.001;
-  const sway = Math.sin(tt * 3.2) * 10;
-  const rise = (Math.sin(tt * 3.2) * 0.5 + 0.5) * 6;
-  const turn = Math.sin(tt * 1.2) * 0.20;
-  const glide = Math.sin(tt * 1.8) * 8;
 
-  const ax = cx + glide;
-  const ay = baseY - 10 - rise;
+  // Better ballroom motion:
+  // - slow rotation
+  // - side travel like waltz box
+  // - rise and fall
+  const turn = Math.sin(tt * 0.95) * 0.28;
+  const rise = (Math.sin(tt * 3.0) * 0.5 + 0.5) * 7;
+  const sway = Math.sin(tt * 3.0) * 12;
 
-  softShadow(ax - 40, baseY + 14, 55, 16, 0.22);
-  softShadow(ax + 35, baseY + 14, 55, 16, 0.22);
+  // Box step path (smooth rectangle-ish)
+  const px = Math.sin(tt * 1.25) * 22;
+  const py = Math.sin(tt * 2.5) * 10;
+
+  const ax = W * 0.52 + px;
+  const ay = baseY - 12 - rise + py * 0.15;
+
+  // Shadows
+  softShadow(ax - 48, baseY + 14, 58, 16, 0.22);
+  softShadow(ax + 42, baseY + 14, 58, 16, 0.22);
 
   ctx.save();
   ctx.translate(ax, ay);
   ctx.rotate(turn);
   ctx.translate(-ax, -ay);
 
-  const man = { x: ax - 60, y: ay - 20 };
-  const girl = { x: ax + 20, y: ay - 18 };
+  const man = { x: ax - 70, y: ay - 18 };
+  const girl = { x: ax + 18, y: ay - 16 };
 
-  const manW = 56, manH = 88;
-  const girlW = 58, girlH = 98;
+  // Joined hands (upper frame)
+  const joinedHands = { x: ax - 6, y: ay - 82 + sway * 0.10 };
 
-  const manShoulder = { x: man.x + 16, y: man.y - 48 + sway * 0.15 };
-  const girlShoulder = { x: girl.x - 10, y: girl.y - 48 - sway * 0.10 };
+  // Shoulders
+  const manS = { x: man.x + 18, y: man.y - 54 + sway * 0.10 };
+  const girlS = { x: girl.x - 10, y: girl.y - 54 - sway * 0.08 };
 
-  const joinedHands = { x: ax - 6, y: ay - 70 + sway * 0.18 };
-
-  ctx.strokeStyle = "rgba(255,235,215,0.92)";
+  // Arms in ballroom frame
+  ctx.strokeStyle = "rgba(255,235,215,0.94)";
   ctx.lineWidth = 6;
   ctx.lineCap = "round";
 
   // man back arm around girl
   ctx.beginPath();
-  ctx.moveTo(man.x + 4, man.y - 46);
-  ctx.quadraticCurveTo(ax - 20, ay - 54, girl.x - 6, girl.y - 44);
+  ctx.moveTo(man.x + 8, man.y - 52);
+  ctx.quadraticCurveTo(ax - 20, ay - 64, girl.x - 6, girl.y - 50);
   ctx.stroke();
 
   // girl arm on man shoulder
   ctx.beginPath();
-  ctx.moveTo(girl.x - 2, girl.y - 46);
-  ctx.quadraticCurveTo(ax - 20, ay - 60, man.x + 10, man.y - 52);
+  ctx.moveTo(girl.x - 2, girl.y - 52);
+  ctx.quadraticCurveTo(ax - 18, ay - 68, man.x + 12, man.y - 58);
   ctx.stroke();
 
-  // front arms to join hands
+  // man front arm to joined hands
   ctx.beginPath();
-  ctx.moveTo(manShoulder.x, manShoulder.y);
-  ctx.quadraticCurveTo(ax - 20, ay - 86, joinedHands.x, joinedHands.y);
+  ctx.moveTo(manS.x, manS.y);
+  ctx.quadraticCurveTo(ax - 26, ay - 96, joinedHands.x, joinedHands.y);
   ctx.stroke();
 
+  // girl front arm to joined hands
   ctx.beginPath();
-  ctx.moveTo(girlShoulder.x, girlShoulder.y);
-  ctx.quadraticCurveTo(ax + 10, ay - 86, joinedHands.x, joinedHands.y);
+  ctx.moveTo(girlS.x, girlS.y);
+  ctx.quadraticCurveTo(ax + 14, ay - 98, joinedHands.x, joinedHands.y);
   ctx.stroke();
 
+  // joined hands
   ctx.fillStyle = "rgba(255,235,215,0.95)";
   ctx.beginPath();
   ctx.ellipse(joinedHands.x, joinedHands.y, 6, 5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // legs
-  ctx.strokeStyle = "rgb(22,22,30)";
+  // Legs stepping (cleaner)
+  const stepM = Math.sin(tt * 3.0) * 12;
+  ctx.strokeStyle = "rgb(20,20,28)";
   ctx.lineWidth = 10;
-  const stepM = Math.sin(tt * 3.2) * 10;
   ctx.beginPath();
-  ctx.moveTo(man.x - 6, man.y + 22);
-  ctx.lineTo(man.x - 10 - stepM * 0.4, baseY + 8);
-  ctx.moveTo(man.x + 10, man.y + 22);
-  ctx.lineTo(man.x + 14 + stepM * 0.4, baseY + 8);
+  ctx.moveTo(man.x - 6, man.y + 26);
+  ctx.lineTo(man.x - 12 - stepM * 0.35, baseY + 8);
+  ctx.moveTo(man.x + 12, man.y + 26);
+  ctx.lineTo(man.x + 16 + stepM * 0.35, baseY + 8);
   ctx.stroke();
 
-  ctx.strokeStyle = "rgb(85,25,70)";
+  const stepG = Math.cos(tt * 3.0) * 12;
+  ctx.strokeStyle = "rgb(90,25,80)";
   ctx.lineWidth = 8;
-  const stepG = Math.cos(tt * 3.2) * 10;
   ctx.beginPath();
-  ctx.moveTo(girl.x - 4, girl.y + 30);
-  ctx.lineTo(girl.x - 6 - stepG * 0.35, baseY + 10);
-  ctx.moveTo(girl.x + 8, girl.y + 30);
-  ctx.lineTo(girl.x + 10 + stepG * 0.35, baseY + 10);
+  ctx.moveTo(girl.x - 4, girl.y + 36);
+  ctx.lineTo(girl.x - 8 - stepG * 0.30, baseY + 10);
+  ctx.moveTo(girl.x + 10, girl.y + 36);
+  ctx.lineTo(girl.x + 12 + stepG * 0.30, baseY + 10);
   ctx.stroke();
 
-  // bodies
-  drawSuitTorso(man.x, man.y - 18 + sway * 0.15, manW, manH);
+  // Bodies
+  drawSuitTorso(man.x, man.y - 18 + sway * 0.08, 58, 92);
 
-  ctx.save();
-  ctx.translate(girl.x, girl.y - 14);
-  ctx.rotate(Math.sin(tt * 2.6) * 0.06);
-  ctx.translate(-girl.x, -(girl.y - 14));
-  drawDress(girl.x, girl.y - 6 - sway * 0.10, girlW, girlH);
-  ctx.restore();
+  const skirtSwing = Math.sin(tt * 2.2) * 0.10;
+  drawDress(girl.x, girl.y - 8 - sway * 0.06, 60, 110, skirtSwing);
 
-  // heads
-  drawFaceProfile(man.x, man.y - 78 + sway * 0.18, 18);
-  ctx.fillStyle = "rgb(25,25,25)";
-  ctx.beginPath();
-  ctx.arc(man.x - 2, man.y - 84 + sway * 0.18, 18, Math.PI, 0);
-  ctx.fill();
+  // Heads
+  drawFace(man.x, man.y - 84 + sway * 0.10, 18, "rgb(25,25,25)");
+  drawFace(girl.x, girl.y - 84 - sway * 0.06, 17, "rgb(85,45,25)");
 
-  drawFaceProfile(girl.x, girl.y - 78 - sway * 0.12, 17);
-  ctx.fillStyle = "rgb(85,45,25)";
-  ctx.beginPath();
-  ctx.arc(girl.x - 3, girl.y - 84 - sway * 0.12, 18, Math.PI, 0);
-  ctx.fill();
+  // hair bun for girl
   ctx.fillStyle = "rgb(70,35,20)";
   ctx.beginPath();
-  ctx.ellipse(girl.x - 16, girl.y - 92 - sway * 0.12, 8, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(girl.x - 16, girl.y - 100 - sway * 0.06, 8, 9, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // bouquet in other hand
-  bouquet(man.x - 42, man.y - 34 + sway * 0.10, 0.74);
+  // Bouquet in man's other hand
+  bouquet(man.x - 48, man.y - 38 + sway * 0.06, 0.78);
 
-  // labels
+  // Labels
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.font = "700 14px Georgia, serif";
   ctx.textAlign = "center";
@@ -759,9 +826,100 @@ function drawCoupleDance() {
   ctx.restore();
 }
 
-/* ------------------------------
-   Update + Draw loop
---------------------------------*/
+/* ---------------------------------
+   Final photo card
+---------------------------------- */
+function drawFinalPhotoCard() {
+  const W = innerWidth, H = innerHeight;
+  const w = Math.min(560, W * 0.74);
+  const h = Math.min(360, H * 0.44);
+  const x = W / 2 - w / 2;
+  const y = H * 0.22;
+
+  ctx.save();
+
+  // card background
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  roundRect(x - 14, y - 14, w + 28, h + 28, 26);
+  ctx.fill();
+
+  // image fit (cover)
+  if (coupleReady) {
+    const iw = coupleImg.width, ih = coupleImg.height;
+    const s = Math.max(w / iw, h / ih);
+    const dw = iw * s, dh = ih * s;
+    const dx = x + (w - dw) / 2;
+    const dy = y + (h - dh) / 2;
+
+    ctx.save();
+    roundRect(x, y, w, h, 18);
+    ctx.clip();
+    ctx.drawImage(coupleImg, dx, dy, dw, dh);
+    ctx.restore();
+  } else {
+    // placeholder
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, "rgba(255,120,180,0.18)");
+    g.addColorStop(1, "rgba(255,255,255,0.0)");
+    ctx.fillStyle = g;
+    roundRect(x, y, w, h, 18);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(230,40,100,0.95)";
+    ctx.font = "800 18px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Add your couple photo here", W / 2, y + h / 2 - 10);
+
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.font = "600 14px Georgia, serif";
+    ctx.fillText("Click “Add Photo” or drag-drop an image", W / 2, y + h / 2 + 18);
+  }
+
+  // small label
+  if (coupleSourceLabel) {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.font = "600 12px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(coupleSourceLabel, W / 2, y + h + 48);
+  }
+
+  ctx.restore();
+}
+
+// Photo button (only in DANCE)
+function drawPhotoButton() {
+  const W = innerWidth, H = innerHeight;
+  const w = 180;
+  const h = 44;
+  const x = W - w - 18;
+  const y = H * 0.18;
+
+  photoBtn = { x, y, w, h, visible: true };
+
+  ctx.save();
+
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  roundRect(x, y, w, h, 16);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "800 14px Georgia, serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Add Photo", x + w / 2, y + h / 2);
+
+  ctx.restore();
+}
+
+/* ---------------------------------
+   Update loop
+---------------------------------- */
 function update() {
   t++;
 
@@ -825,6 +983,7 @@ function update() {
       break;
   }
 
+  // Floating hearts drift up
   for (const h of floatHearts) {
     h.y -= 1.2 * h.sp;
     if (h.y < -70) {
@@ -833,6 +992,7 @@ function update() {
     }
   }
 
+  // Sparkles
   for (let i = sparkles.length - 1; i >= 0; i--) {
     const p = sparkles[i];
     p.x += p.vx;
@@ -843,12 +1003,14 @@ function update() {
     if (p.life <= 0) sparkles.splice(i, 1);
   }
 
+  // Confetti
   for (const c of confetti) {
     c.y += c.s;
     c.a += 0.08;
     c.x += Math.sin(c.a) * 0.6;
   }
 
+  // Fireworks
   for (let i = fireworks.length - 1; i >= 0; i--) {
     const fw = fireworks[i];
     if (!fw.boom) {
@@ -871,6 +1033,7 @@ function update() {
     }
   }
 
+  // Click hearts
   for (let i = clickHearts.length - 1; i >= 0; i--) {
     const h = clickHearts[i];
     h.x += h.vx;
@@ -880,6 +1043,7 @@ function update() {
     if (h.life <= 0) clickHearts.splice(i, 1);
   }
 
+  // Shake decay
   shake = Math.max(0, shake - 0.7);
 }
 
@@ -894,6 +1058,7 @@ function draw() {
 
   drawBackground();
 
+  // Floating hearts overlay
   const heartAlpha =
     scene === Scene.CLOSE_EYES ? 0.25 :
     scene === Scene.REVEAL ? 0.20 :
@@ -902,20 +1067,26 @@ function draw() {
   ctx.fillStyle = `rgba(255, 210, 230, ${heartAlpha})`;
   for (const h of floatHearts) miniHeart(h.x, h.y, h.s);
 
+  // Sparkles
   for (const p of sparkles) {
     ctx.fillStyle = `hsla(${p.hue}, 100%, 75%, ${p.life})`;
     ctx.fillRect(p.x, p.y, 3, 3);
   }
 
+  // Characters / dance
   yesBtn.visible = false;
+  photoBtn.visible = false;
 
   if (scene === Scene.DANCE) {
     drawCoupleDance();
+    drawFinalPhotoCard();
+    drawPhotoButton();
   } else {
     drawGirl(gx, gy);
     drawBoy(boyX, gy);
   }
 
+  // Dialogue + button
   if (scene === Scene.GIRL_HIDE) speechBubble(gx - 180, gy - 210, "What are you hiding? 😏");
   if (scene === Scene.CLOSE_EYES) speechBubble(boyX - 70, gy - 230, "Close your eyes… 🙈");
   if (scene === Scene.REVEAL) speechBubble(gx - 190, gy - 210, "Okay… I’m looking now! 😳✨");
@@ -924,6 +1095,7 @@ function draw() {
   if (scene === Scene.WAIT_YES) drawYesButton();
   if (scene === Scene.YES || scene === Scene.DANCE) speechBubble(gx - 160, gy - 210, "YES!!! 💖");
 
+  // Celebration overlay for YES + DANCE
   if (scene === Scene.YES || scene === Scene.DANCE) {
     ctx.save();
     ctx.translate(W / 2, 160 + Math.sin(performance.now() / 400) * 12);
@@ -960,8 +1132,16 @@ function draw() {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillText("Tip: click/tap anywhere to throw hearts 💕", 18, H - 18);
+
+    if (scene === Scene.DANCE && !coupleReady) {
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.font = "700 13px Georgia, serif";
+      ctx.textAlign = "right";
+      ctx.fillText("Drag and drop photo here too", W - 18, H - 18);
+    }
   }
 
+  // Click hearts
   for (const h of clickHearts) {
     ctx.fillStyle = `rgba(255,120,180,${h.life})`;
     miniHeart(h.x, h.y, h.s);
