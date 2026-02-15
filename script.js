@@ -1,4 +1,4 @@
-// script.js (mobile + PC perfect fullscreen, no "add pic", auto loads couple.jpg)
+// script.js (PC + Mobile fullscreen, auto loads couple.jpg, left photo in last scene, center title + heart, dancers below)
 
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
@@ -76,7 +76,7 @@ coupleImg.src = "couple.jpg"; // must match repo file name exactly
 coupleImg.onload = () => { coupleReady = true; };
 coupleImg.onerror = () => { coupleReady = false; };
 
-// Particles (init AFTER resize)
+// Particles
 let floatHearts = [];
 let fireflies = [];
 const sparkles = [];
@@ -102,7 +102,6 @@ function initParticles() {
 }
 initParticles();
 
-// If user rotates phone, re-init particles so it fills new screen
 function softReinitOnBigResize() {
   const oldW = VW, oldH = VH;
   resize();
@@ -565,7 +564,7 @@ function drawBackground() {
   ctx.fill();
 }
 
-// Ballroom dance (kept simple but smooth)
+/* ---- Ballroom dance (simple, shifted right so photo left doesn't block) ---- */
 function drawCoupleDance() {
   const baseY = groundY();
   const tt = performance.now() * 0.001;
@@ -573,10 +572,11 @@ function drawCoupleDance() {
   const turn = Math.sin(tt * 0.95) * 0.24;
   const rise = (Math.sin(tt * 3.0) * 0.5 + 0.5) * 9;
   const swayX = Math.sin(tt * 1.2) * 18;
-  const cx = VW * 0.52 + swayX;
+
+  // shift to the right side (keeps left photo clear)
+  const cx = VW * 0.68 + swayX;
   const cy = baseY - 30 - rise;
 
-  // shadows
   ctx.fillStyle = "rgba(0,0,0,0.22)";
   ctx.beginPath();
   ctx.ellipse(cx - 30, baseY + 12, 52, 14, 0, 0, Math.PI * 2);
@@ -588,11 +588,9 @@ function drawCoupleDance() {
   ctx.rotate(turn);
   ctx.translate(-cx, -cy);
 
-  // girl + boy in dance pose (re-using our characters for now)
   drawBoy(cx - 90, baseY);
   drawGirl(cx + 20, baseY);
 
-  // hold-hands hint (simple)
   ctx.strokeStyle = "rgba(255,235,215,0.95)";
   ctx.lineWidth = 6;
   ctx.lineCap = "round";
@@ -606,19 +604,21 @@ function drawCoupleDance() {
   ctx.restore();
 }
 
-// Final photo card
+/* ---- Final photo card on LEFT (big, does not block dancers) ---- */
 function drawFinalPhotoCard() {
   if (!coupleReady) return;
 
-  const w = Math.min(560, VW * 0.74);
-  const h = Math.min(360, VH * 0.44);
-  const x = VW / 2 - w / 2;
-  const y = VH * 0.22;
+  const W = VW, H = VH;
+
+  const w = Math.min(420, W * 0.42);
+  const h = Math.min(520, H * 0.62);
+  const x = Math.max(16, W * 0.04);
+  const y = Math.max(110, H * 0.18);
 
   ctx.save();
 
   ctx.fillStyle = "rgba(255,255,255,0.92)";
-  roundRect(x - 14, y - 14, w + 28, h + 28, 26);
+  roundRect(x - 12, y - 12, w + 24, h + 24, 24);
   ctx.fill();
 
   const iw = coupleImg.width, ih = coupleImg.height;
@@ -632,6 +632,12 @@ function drawFinalPhotoCard() {
   ctx.clip();
   ctx.drawImage(coupleImg, dx, dy, dw, dh);
   ctx.restore();
+
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.font = "600 12px Georgia, serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText("Your photo", x + 8, y + h + 18);
 
   ctx.restore();
 }
@@ -785,12 +791,15 @@ function draw() {
   yesBtn.visible = false;
 
   if (scene === Scene.DANCE) {
+    // photo left, title + heart center, dancers below-right
+    drawFinalPhotoCard();
     drawCoupleDance();
   } else {
     drawGirl(gx, gy);
     drawBoy(boyX, gy);
   }
 
+  // Dialogue
   if (scene === Scene.GIRL_HIDE) speechBubble(gx - 180, gy - 210, "What are you hiding? 😏");
   if (scene === Scene.CLOSE_EYES) speechBubble(boyX - 70, gy - 230, "Close your eyes… 🙈");
   if (scene === Scene.REVEAL) speechBubble(gx - 190, gy - 210, "Okay… I’m looking now! 😳✨");
@@ -799,19 +808,22 @@ function draw() {
   if (scene === Scene.WAIT_YES) drawYesButton();
   if (scene === Scene.YES || scene === Scene.DANCE) speechBubble(gx - 160, gy - 210, "YES!!! 💖");
 
+  // Last scenes overlay: title top center, big heart center, confetti, fireworks, hint
   if (scene === Scene.YES || scene === Scene.DANCE) {
+    const W = VW, H = VH;
+
+    ctx.fillStyle = "rgba(255,255,255,0.97)";
+    ctx.font = "800 52px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`${FROM} loves ${TO}`, W / 2, 82);
+
     ctx.save();
-    ctx.translate(VW / 2, 160 + Math.sin(performance.now() / 400) * 12);
+    ctx.translate(W / 2, 170 + Math.sin(performance.now() / 400) * 10);
     ctx.scale(heartPulse, heartPulse);
     ctx.fillStyle = "rgba(255,50,120,0.98)";
     miniHeart(0, 0, 64);
     ctx.restore();
-
-    ctx.fillStyle = "rgba(255,255,255,0.96)";
-    ctx.font = "700 56px Georgia, serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillText(`${FROM} ❤ ${TO}`, VW / 2, 92);
 
     for (const c of confetti) {
       ctx.fillStyle = c.c;
@@ -834,13 +846,10 @@ function draw() {
     ctx.font = "600 14px Georgia, serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("Tip: click/tap anywhere to throw hearts 💕", 18, VH - 18);
+    ctx.fillText("Tip: click/tap anywhere to throw hearts 💕", 18, H - 18);
   }
 
-  if (scene === Scene.DANCE) {
-    drawFinalPhotoCard();
-  }
-
+  // Click hearts
   for (const h of clickHearts) {
     ctx.fillStyle = `rgba(255,120,180,${h.life})`;
     miniHeart(h.x, h.y, h.s);
