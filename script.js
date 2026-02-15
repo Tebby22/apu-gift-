@@ -1,15 +1,34 @@
+// script.js (mobile + PC perfect fullscreen, no "add pic", auto loads couple.jpg)
+
 const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", { alpha: true });
+
+let VW = 0;
+let VH = 0;
+
+function getViewport() {
+  const w = window.innerWidth;
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  return { w, h };
+}
 
 function resize() {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = Math.floor(innerWidth * dpr);
-  canvas.height = Math.floor(innerHeight * dpr);
-  canvas.style.width = innerWidth + "px";
-  canvas.style.height = innerHeight + "px";
+  const { w, h } = getViewport();
+
+  VW = w;
+  VH = h;
+
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-addEventListener("resize", resize);
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", resize);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resize);
 resize();
 
 // Names
@@ -17,8 +36,8 @@ const FROM = "Saiful";
 const TO = "Anika";
 
 // Layout helpers
-const girlX = () => Math.min(innerWidth - 210, Math.max(260, innerWidth * 0.66));
-const groundY = () => Math.min(innerHeight - 70, innerHeight * 0.74);
+const girlX = () => Math.min(VW - 210, Math.max(260, VW * 0.66));
+const groundY = () => Math.min(VH - 70, VH * 0.74);
 
 // Scene state machine
 const Scene = {
@@ -44,46 +63,61 @@ let reveal = 0;
 let kneel = 0;
 let heartPulse = 1.0;
 
-// UI button hitbox (canvas button)
+// UI button hitbox
 let yesBtn = { x: 0, y: 0, w: 0, h: 0, visible: false };
 
 // Camera shake
 let shake = 0;
 
-// Particles
-const floatHearts = Array.from({ length: 26 }, () => ({
-  x: Math.random() * innerWidth,
-  y: Math.random() * innerHeight,
-  s: 6 + Math.random() * 10,
-  sp: 0.5 + Math.random() * 1.3,
-}));
+// Auto-load photo (repo root)
+const coupleImg = new Image();
+let coupleReady = false;
+coupleImg.src = "couple.jpg"; // must match repo file name exactly
+coupleImg.onload = () => { coupleReady = true; };
+coupleImg.onerror = () => { coupleReady = false; };
 
+// Particles (init AFTER resize)
+let floatHearts = [];
+let fireflies = [];
 const sparkles = [];
 const confetti = [];
 const fireworks = [];
 const clickHearts = [];
-const fireflies = Array.from({ length: 28 }, () => ({
-  x: Math.random() * innerWidth,
-  y: Math.random() * innerHeight,
-  r: 1 + Math.random() * 2.2,
-  a: Math.random() * Math.PI * 2,
-  sp: 0.007 + Math.random() * 0.012,
-}));
 
-/* ---------------------------------
-   AUTO LOAD PHOTO ONLY
----------------------------------- */
-const coupleImg = new Image();
-let coupleReady = false;
+function initParticles() {
+  floatHearts = Array.from({ length: 26 }, () => ({
+    x: Math.random() * VW,
+    y: Math.random() * VH,
+    s: 6 + Math.random() * 10,
+    sp: 0.5 + Math.random() * 1.3,
+  }));
 
-// MUST match your repo file name exactly
-coupleImg.src = "couple.jpg";
-coupleImg.onload = () => { coupleReady = true; };
-coupleImg.onerror = () => { coupleReady = false; };
+  fireflies = Array.from({ length: 28 }, () => ({
+    x: Math.random() * VW,
+    y: Math.random() * VH,
+    r: 1 + Math.random() * 2.2,
+    a: Math.random() * Math.PI * 2,
+    sp: 0.007 + Math.random() * 0.012,
+  }));
+}
+initParticles();
 
-// Click/tap hearts + YES button click
+// If user rotates phone, re-init particles so it fills new screen
+function softReinitOnBigResize() {
+  const oldW = VW, oldH = VH;
+  resize();
+  const dw = Math.abs(VW - oldW);
+  const dh = Math.abs(VH - oldH);
+  if (dw > 120 || dh > 120) initParticles();
+}
+window.addEventListener("orientationchange", () => {
+  setTimeout(softReinitOnBigResize, 200);
+});
+
+// Tap/click hearts + YES button click
 addEventListener("pointerdown", (e) => {
-  const mx = e.clientX, my = e.clientY;
+  const mx = e.clientX;
+  const my = e.clientY;
 
   if (yesBtn.visible) {
     if (mx >= yesBtn.x && mx <= yesBtn.x + yesBtn.w && my >= yesBtn.y && my <= yesBtn.y + yesBtn.h) {
@@ -96,7 +130,7 @@ addEventListener("pointerdown", (e) => {
   }
 
   spawnClickHearts(mx, my);
-});
+}, { passive: true });
 
 function spawnClickHearts(x, y) {
   for (let i = 0; i < 12; i++) {
@@ -184,7 +218,7 @@ function sparkleBurst(x, y, n = 30) {
 function addConfetti() {
   const colors = ["#ff69b4", "#ffd700", "#00e5ff", "#ffa726", "#ffffff", "#b388ff"];
   confetti.push({
-    x: Math.random() * innerWidth,
+    x: Math.random() * VW,
     y: -10,
     c: colors[(Math.random() * colors.length) | 0],
     s: 2 + Math.random() * 4,
@@ -194,8 +228,8 @@ function addConfetti() {
 
 function launchFirework() {
   fireworks.push({
-    x: Math.random() * innerWidth,
-    y: innerHeight + 10,
+    x: Math.random() * VW,
+    y: VH + 10,
     vx: (Math.random() * 2 - 1) * 0.9,
     vy: -(7 + Math.random() * 3),
     boom: false,
@@ -282,7 +316,7 @@ function bouquet(x, y, scale = 1) {
   ctx.restore();
 }
 
-// Walk scene girl
+// Characters (walk scenes)
 function drawGirl(x, y) {
   const breathing = Math.sin(performance.now() / 450) * 1.5;
   const cy = y + breathing;
@@ -348,7 +382,6 @@ function drawGirl(x, y) {
   ctx.fillText(TO, x + 24, cy + 30);
 }
 
-// Walk scene boy in suit
 function drawBoy(x, y) {
   const isWalk = scene === Scene.WALK;
   const bob = isWalk ? Math.abs(Math.sin(walkPhase) * 8) : Math.sin(performance.now() / 450) * 1.5;
@@ -431,27 +464,26 @@ function drawBoy(x, y) {
 
 // YES button
 function drawYesButton() {
-  const W = innerWidth, H = innerHeight;
-  const w = Math.min(340, W * 0.5);
+  const w = Math.min(340, VW * 0.5);
   const h = 64;
-  const x = W / 2 - w / 2;
-  const y = H * 0.18;
+  const x = VW / 2 - w / 2;
+  const y = VH * 0.18;
 
   yesBtn = { x, y, w, h, visible: true };
 
   const pulse = 0.92 + 0.08 * Math.sin(performance.now() / 140);
 
   ctx.save();
-  ctx.translate(W / 2, y + h / 2);
+  ctx.translate(VW / 2, y + h / 2);
   ctx.scale(pulse, pulse);
-  ctx.translate(-W / 2, -(y + h / 2));
+  ctx.translate(-VW / 2, -(y + h / 2));
 
-  const g = ctx.createRadialGradient(W / 2, y + h / 2, 10, W / 2, y + h / 2, 140);
+  const g = ctx.createRadialGradient(VW / 2, y + h / 2, 10, VW / 2, y + h / 2, 140);
   g.addColorStop(0, "rgba(255, 120, 180, 0.35)");
   g.addColorStop(1, "rgba(255, 120, 180, 0)");
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(W / 2, y + h / 2, 140, 0, Math.PI * 2);
+  ctx.arc(VW / 2, y + h / 2, 140, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "rgba(230,40,100,0.93)";
@@ -473,7 +505,6 @@ function drawYesButton() {
 
 // Background
 function drawBackground() {
-  const W = innerWidth, H = innerHeight;
   const gy = groundY();
 
   const palettes = {
@@ -494,7 +525,7 @@ function drawBackground() {
   sky.addColorStop(0, top);
   sky.addColorStop(1, bottom);
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, VW, VH);
 
   const starAlpha =
     scene === Scene.CLOSE_EYES ? 0.24 :
@@ -503,7 +534,7 @@ function drawBackground() {
 
   ctx.fillStyle = `rgba(255,255,255,${starAlpha})`;
   for (let i = 0; i < 90; i++) {
-    const x = (i * 137) % W;
+    const x = (i * 137) % VW;
     const y = (i * 71) % Math.max(180, gy - 120);
     ctx.fillRect(x, y, 1, 1);
   }
@@ -513,10 +544,10 @@ function drawBackground() {
     f.x += Math.cos(f.a) * 0.5;
     f.y += Math.sin(f.a * 1.2) * 0.4;
 
-    if (f.x < -20) f.x = W + 20;
-    if (f.x > W + 20) f.x = -20;
-    if (f.y < -20) f.y = H + 20;
-    if (f.y > H + 20) f.y = -20;
+    if (f.x < -20) f.x = VW + 20;
+    if (f.x > VW + 20) f.x = -20;
+    if (f.y < -20) f.y = VH + 20;
+    if (f.y > VH + 20) f.y = -20;
 
     const glow = 0.15 + 0.25 * Math.abs(Math.sin(f.a * 2));
     ctx.fillStyle = `rgba(255, 240, 180, ${glow})`;
@@ -525,221 +556,64 @@ function drawBackground() {
     ctx.fill();
   }
 
-  const ground = ctx.createLinearGradient(0, gy, 0, H);
+  const ground = ctx.createLinearGradient(0, gy, 0, VH);
   ground.addColorStop(0, "rgba(160,70,130,0.95)");
   ground.addColorStop(1, "rgba(90,30,80,0.95)");
   ctx.fillStyle = ground;
   ctx.beginPath();
-  ctx.ellipse(W / 2, gy + 90, W * 0.85, 170, 0, 0, Math.PI * 2);
+  ctx.ellipse(VW / 2, gy + 90, VW * 0.85, 170, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
-/* ---------------------------------
-   Ballroom dance
----------------------------------- */
-function softShadow(x, y, rx, ry, a = 0.25) {
-  ctx.save();
-  ctx.fillStyle = `rgba(0,0,0,${a})`;
-  ctx.beginPath();
-  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawSuitTorso(x, y, w, h) {
-  ctx.fillStyle = "rgb(22,22,32)";
-  roundRect(x - w / 2, y - h / 2, w, h, 18);
-  ctx.fill();
-
-  ctx.fillStyle = "rgb(245,245,250)";
-  roundRect(x - w * 0.12, y - h * 0.42, w * 0.24, h * 0.84, 10);
-  ctx.fill();
-
-  ctx.fillStyle = "rgb(16,16,22)";
-  ctx.beginPath();
-  ctx.moveTo(x - w * 0.18, y - h * 0.42);
-  ctx.lineTo(x - w * 0.02, y - h * 0.06);
-  ctx.lineTo(x - w * 0.22, y - h * 0.02);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(x + w * 0.18, y - h * 0.42);
-  ctx.lineTo(x + w * 0.02, y - h * 0.06);
-  ctx.lineTo(x + w * 0.22, y - h * 0.02);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "rgb(200,30,70)";
-  ctx.beginPath();
-  ctx.moveTo(x, y - h * 0.38);
-  ctx.lineTo(x + w * 0.06, y - h * 0.26);
-  ctx.lineTo(x, y - h * 0.08);
-  ctx.lineTo(x - w * 0.06, y - h * 0.26);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawDress(x, y, w, h, swing = 0) {
-  ctx.fillStyle = "rgb(255,110,170)";
-  roundRect(x - w * 0.22, y - h * 0.44, w * 0.44, h * 0.44, 14);
-  ctx.fill();
-
-  const g = ctx.createLinearGradient(0, y - h * 0.08, 0, y + h * 0.70);
-  g.addColorStop(0, "rgba(255,110,170,0.95)");
-  g.addColorStop(1, "rgba(255,60,135,0.98)");
-  ctx.fillStyle = g;
-
-  ctx.beginPath();
-  ctx.moveTo(x - w * 0.30, y - h * 0.05);
-  ctx.quadraticCurveTo(x - w * (0.78 + swing), y + h * 0.42, x - w * 0.18, y + h * 0.66);
-  ctx.quadraticCurveTo(x, y + h * 0.75, x + w * 0.18, y + h * 0.66);
-  ctx.quadraticCurveTo(x + w * (0.78 - swing), y + h * 0.42, x + w * 0.30, y - h * 0.05);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = "rgba(255,255,255,0.14)";
-  ctx.lineWidth = 1;
-  for (let i = -3; i <= 3; i++) {
-    ctx.beginPath();
-    ctx.moveTo(x + i * w * 0.06, y - h * 0.02);
-    ctx.quadraticCurveTo(x + i * w * 0.14, y + h * 0.30, x + i * w * 0.02, y + h * 0.64);
-    ctx.stroke();
-  }
-}
-
-function drawFace(x, y, r, hair = "rgb(30,30,30)") {
-  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.2, x, y, r);
-  g.addColorStop(0, "rgb(255,235,215)");
-  g.addColorStop(1, "rgb(245,210,190)");
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = hair;
-  ctx.beginPath();
-  ctx.arc(x - 2, y - 6, r * 1.05, Math.PI, 0);
-  ctx.fill();
-
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
-  ctx.beginPath();
-  ctx.ellipse(x + r * 0.10, y - r * 0.10, r * 0.10, r * 0.14, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "rgba(255,255,255,0.65)";
-  ctx.beginPath();
-  ctx.ellipse(x + r * 0.14, y - r * 0.14, r * 0.05, r * 0.08, 0, 0, Math.PI * 2);
-  ctx.fill();
-}
-
+// Ballroom dance (kept simple but smooth)
 function drawCoupleDance() {
-  const W = innerWidth;
   const baseY = groundY();
   const tt = performance.now() * 0.001;
 
-  const turn = Math.sin(tt * 0.95) * 0.28;
-  const rise = (Math.sin(tt * 3.0) * 0.5 + 0.5) * 7;
-  const sway = Math.sin(tt * 3.0) * 12;
+  const turn = Math.sin(tt * 0.95) * 0.24;
+  const rise = (Math.sin(tt * 3.0) * 0.5 + 0.5) * 9;
+  const swayX = Math.sin(tt * 1.2) * 18;
+  const cx = VW * 0.52 + swayX;
+  const cy = baseY - 30 - rise;
 
-  const px = Math.sin(tt * 1.25) * 22;
-  const py = Math.sin(tt * 2.5) * 10;
-
-  const ax = W * 0.52 + px;
-  const ay = baseY - 12 - rise + py * 0.15;
-
-  softShadow(ax - 48, baseY + 14, 58, 16, 0.22);
-  softShadow(ax + 42, baseY + 14, 58, 16, 0.22);
+  // shadows
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(cx - 30, baseY + 12, 52, 14, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx + 26, baseY + 12, 52, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.save();
-  ctx.translate(ax, ay);
+  ctx.translate(cx, cy);
   ctx.rotate(turn);
-  ctx.translate(-ax, -ay);
+  ctx.translate(-cx, -cy);
 
-  const man = { x: ax - 70, y: ay - 18 };
-  const girl = { x: ax + 18, y: ay - 16 };
+  // girl + boy in dance pose (re-using our characters for now)
+  drawBoy(cx - 90, baseY);
+  drawGirl(cx + 20, baseY);
 
-  const joinedHands = { x: ax - 6, y: ay - 82 + sway * 0.10 };
-  const manS = { x: man.x + 18, y: man.y - 54 + sway * 0.10 };
-  const girlS = { x: girl.x - 10, y: girl.y - 54 - sway * 0.08 };
-
-  ctx.strokeStyle = "rgba(255,235,215,0.94)";
+  // hold-hands hint (simple)
+  ctx.strokeStyle = "rgba(255,235,215,0.95)";
   ctx.lineWidth = 6;
   ctx.lineCap = "round";
-
   ctx.beginPath();
-  ctx.moveTo(man.x + 8, man.y - 52);
-  ctx.quadraticCurveTo(ax - 20, ay - 64, girl.x - 6, girl.y - 50);
+  ctx.moveTo(cx - 52, baseY - 96);
+  ctx.lineTo(cx - 8, baseY - 92);
   ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(girl.x - 2, girl.y - 52);
-  ctx.quadraticCurveTo(ax - 18, ay - 68, man.x + 12, man.y - 58);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(manS.x, manS.y);
-  ctx.quadraticCurveTo(ax - 26, ay - 96, joinedHands.x, joinedHands.y);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(girlS.x, girlS.y);
-  ctx.quadraticCurveTo(ax + 14, ay - 98, joinedHands.x, joinedHands.y);
-  ctx.stroke();
-
-  ctx.fillStyle = "rgba(255,235,215,0.95)";
-  ctx.beginPath();
-  ctx.ellipse(joinedHands.x, joinedHands.y, 6, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  const stepM = Math.sin(tt * 3.0) * 12;
-  ctx.strokeStyle = "rgb(20,20,28)";
-  ctx.lineWidth = 10;
-  ctx.beginPath();
-  ctx.moveTo(man.x - 6, man.y + 26);
-  ctx.lineTo(man.x - 12 - stepM * 0.35, baseY + 8);
-  ctx.moveTo(man.x + 12, man.y + 26);
-  ctx.lineTo(man.x + 16 + stepM * 0.35, baseY + 8);
-  ctx.stroke();
-
-  const stepG = Math.cos(tt * 3.0) * 12;
-  ctx.strokeStyle = "rgb(90,25,80)";
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.moveTo(girl.x - 4, girl.y + 36);
-  ctx.lineTo(girl.x - 8 - stepG * 0.30, baseY + 10);
-  ctx.moveTo(girl.x + 10, girl.y + 36);
-  ctx.lineTo(girl.x + 12 + stepG * 0.30, baseY + 10);
-  ctx.stroke();
-
-  drawSuitTorso(man.x, man.y - 18 + sway * 0.08, 58, 92);
-  const skirtSwing = Math.sin(tt * 2.2) * 0.10;
-  drawDress(girl.x, girl.y - 8 - sway * 0.06, 60, 110, skirtSwing);
-
-  drawFace(man.x, man.y - 84 + sway * 0.10, 18, "rgb(25,25,25)");
-  drawFace(girl.x, girl.y - 84 - sway * 0.06, 17, "rgb(85,45,25)");
-
-  ctx.fillStyle = "rgb(70,35,20)";
-  ctx.beginPath();
-  ctx.ellipse(girl.x - 16, girl.y - 100 - sway * 0.06, 8, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  bouquet(man.x - 48, man.y - 38 + sway * 0.06, 0.78);
+  bouquet(cx - 20, baseY - 92, 0.85);
 
   ctx.restore();
 }
 
-/* ---------------------------------
-   Final photo card (ONLY if loaded)
----------------------------------- */
+// Final photo card
 function drawFinalPhotoCard() {
   if (!coupleReady) return;
 
-  const W = innerWidth, H = innerHeight;
-  const w = Math.min(560, W * 0.74);
-  const h = Math.min(360, H * 0.44);
-  const x = W / 2 - w / 2;
-  const y = H * 0.22;
+  const w = Math.min(560, VW * 0.74);
+  const h = Math.min(360, VH * 0.44);
+  const x = VW / 2 - w / 2;
+  const y = VH * 0.22;
 
   ctx.save();
 
@@ -829,8 +703,8 @@ function update() {
   for (const h of floatHearts) {
     h.y -= 1.2 * h.sp;
     if (h.y < -70) {
-      h.y = innerHeight + 70;
-      h.x = Math.random() * innerWidth;
+      h.y = VH + 70;
+      h.x = Math.random() * VW;
     }
   }
 
@@ -856,7 +730,7 @@ function update() {
       fw.x += fw.vx;
       fw.y += fw.vy;
       fw.vy += 0.06;
-      if (fw.vy > -1.0 || fw.y < innerHeight * 0.45) explodeFirework(fw);
+      if (fw.vy > -1.0 || fw.y < VH * 0.45) explodeFirework(fw);
     } else {
       for (let j = fw.p.length - 1; j >= 0; j--) {
         const p = fw.p[j];
@@ -884,8 +758,8 @@ function update() {
   shake = Math.max(0, shake - 0.7);
 }
 
+// Draw
 function draw() {
-  const W = innerWidth, H = innerHeight;
   const gx = girlX();
   const gy = groundY();
 
@@ -927,7 +801,7 @@ function draw() {
 
   if (scene === Scene.YES || scene === Scene.DANCE) {
     ctx.save();
-    ctx.translate(W / 2, 160 + Math.sin(performance.now() / 400) * 12);
+    ctx.translate(VW / 2, 160 + Math.sin(performance.now() / 400) * 12);
     ctx.scale(heartPulse, heartPulse);
     ctx.fillStyle = "rgba(255,50,120,0.98)";
     miniHeart(0, 0, 64);
@@ -937,7 +811,7 @@ function draw() {
     ctx.font = "700 56px Georgia, serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(`${FROM} ❤ ${TO}`, W / 2, 92);
+    ctx.fillText(`${FROM} ❤ ${TO}`, VW / 2, 92);
 
     for (const c of confetti) {
       ctx.fillStyle = c.c;
@@ -960,7 +834,7 @@ function draw() {
     ctx.font = "600 14px Georgia, serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("Tip: click/tap anywhere to throw hearts 💕", 18, H - 18);
+    ctx.fillText("Tip: click/tap anywhere to throw hearts 💕", 18, VH - 18);
   }
 
   if (scene === Scene.DANCE) {
